@@ -1,0 +1,16 @@
+{
+  "name": "衣服搭配",
+  "appid": "__UNI__CLOTHES_MATCH",
+  "description": "衣服搭配微信小程序",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  },
+  "vueVersion": "3"
+}

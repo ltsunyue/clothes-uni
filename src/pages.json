@@ -1,0 +1,48 @@
+{
+  "pages": [
+    {
+      "path": "pages/wardrobe/index",
+      "style": {
+        "navigationBarTitleText": "衣物库"
+      }
+    },
+    {
+      "path": "pages/outfit/index",
+      "style": {
+        "navigationBarTitleText": "搭配"
+      }
+    },
+    {
+      "path": "pages/plans/index",
+      "style": {
+        "navigationBarTitleText": "方案"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#626262",
+    "selectedColor": "#156b6a",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/wardrobe/index",
+        "text": "衣物库"
+      },
+      {
+        "pagePath": "pages/outfit/index",
+        "text": "搭配"
+      },
+      {
+        "pagePath": "pages/plans/index",
+        "text": "方案"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "衣服搭配",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f4f6f5"
+  }
+}
