@@ -39,7 +39,8 @@ export function getSubcategoryLabel(categoryKey, subcategoryKey) {
 }
 
 export function getWardrobeItems() {
-  return uni.getStorageSync(CLOTHES_KEY) || []
+  const items = uni.getStorageSync(CLOTHES_KEY)
+  return Array.isArray(items) ? items : []
 }
 
 export function saveWardrobeItems(items) {
@@ -62,7 +63,8 @@ export function deleteWardrobeItem(id) {
 }
 
 export function getOutfitPlans() {
-  return uni.getStorageSync(PLANS_KEY) || []
+  const plans = uni.getStorageSync(PLANS_KEY)
+  return Array.isArray(plans) ? plans : []
 }
 
 export function saveOutfitPlans(plans) {

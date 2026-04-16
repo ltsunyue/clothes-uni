@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <view class="summary">
-      <text>拖动左侧衣物到右侧人物区域，或点一下直接穿上。</text>
+      <text>点击左侧衣物直接穿上，也可以向右拖到搭配区域。</text>
     </view>
 
     <view class="stage">
@@ -15,10 +15,10 @@
               :key="item.id"
               class="draggable-item"
               @tap="equip(item)"
-              @touchstart="startDrag(item, $event)"
-              @touchmove.stop.prevent="moveDrag"
-              @touchend="endDrag"
-              @touchcancel="cancelDrag"
+              @touchstart="startSourceDrag(item, $event)"
+              @touchmove="moveSourceDrag"
+              @touchend="endSourceDrag"
+              @touchcancel="cancelSourceDrag"
             >
               <image class="thumb" :src="item.image" mode="aspectFill" />
               <text class="item-name">{{ subLabel(item) }}</text>
@@ -140,7 +140,6 @@
     </view>
 
     <view class="actions">
-      <button class="secondary" @tap="clearSelected">清空</button>
       <button class="primary" @tap="savePlan">保存搭配方案</button>
     </view>
   </view>
@@ -152,15 +151,22 @@ import { onShow } from '@dcloudio/uni-app'
 import { CATEGORY_TREE, addOutfitPlan, getSubcategoryLabel, getWardrobeItems } from '../../utils/storage'
 
 const items = ref([])
-const draggingItem = ref(null)
 const activeSlot = ref('')
-const dragPoint = reactive({ x: 0, y: 0 })
+const draggingItem = ref(null)
+const dragCandidate = ref(null)
+const dragPoint = ref({ x: 0, y: 0 })
+const dragStartPoint = ref({ x: 0, y: 0 })
 const wearDrag = reactive({
   slot: '',
+  ready: false,
   offsetX: 0,
   offsetY: 0,
   width: 0,
   height: 0,
+  zoneLeft: 0,
+  zoneTop: 0,
+  zoneWidth: 0,
+  zoneHeight: 0,
   startX: 0,
   startY: 0,
   hasMoved: false
@@ -195,50 +201,81 @@ const itemsByCategory = computed(() => {
     return groups
   }, {})
 })
-const ghostStyle = computed(() => `left:${dragPoint.x - 42}px;top:${dragPoint.y - 42}px;`)
+const ghostStyle = computed(() => `left:${dragPoint.value.x - 42}px;top:${dragPoint.value.y - 42}px;`)
 
 onShow(() => {
   items.value = getWardrobeItems()
 })
 
-function startDrag(item, event) {
-  draggingItem.value = item
-  setDragPoint(event)
-}
-
-function moveDrag(event) {
-  if (!draggingItem.value) {
-    return
-  }
-  setDragPoint(event)
-}
-
-function endDrag(event) {
-  if (!draggingItem.value) {
-    return
-  }
-  setDragPoint(event)
-  if (dragPoint.x > 170) {
-    equip(draggingItem.value)
-    uni.showToast({ title: '已放到人物上', icon: 'none' })
-  }
-  draggingItem.value = null
-}
-
-function cancelDrag() {
-  draggingItem.value = null
-}
-
-function setDragPoint(event) {
-  const touch = event.changedTouches?.[0] || event.touches?.[0]
+function startSourceDrag(item, event) {
+  const touch = getTouchPoint(event)
   if (!touch) {
     return
   }
-  dragPoint.x = touch.clientX || touch.pageX
-  dragPoint.y = touch.clientY || touch.pageY
+  dragCandidate.value = item
+  dragPoint.value = { x: touch.clientX, y: touch.clientY }
+  dragStartPoint.value = { x: touch.clientX, y: touch.clientY }
+}
+
+function moveSourceDrag(event) {
+  const touch = getTouchPoint(event)
+  if (!touch) {
+    return
+  }
+  dragPoint.value = { x: touch.clientX, y: touch.clientY }
+
+  if (draggingItem.value) {
+    return
+  }
+
+  if (!dragCandidate.value) {
+    return
+  }
+
+  const moveX = touch.clientX - dragStartPoint.value.x
+  const moveY = touch.clientY - dragStartPoint.value.y
+  if (Math.abs(moveY) > 14 && Math.abs(moveY) > Math.abs(moveX)) {
+    dragCandidate.value = null
+    return
+  }
+  if (moveX > 18 && moveX > Math.abs(moveY) * 1.2) {
+    draggingItem.value = dragCandidate.value
+    dragCandidate.value = null
+  }
+}
+
+function endSourceDrag() {
+  dragCandidate.value = null
+  const item = draggingItem.value
+  if (!item) {
+    return
+  }
+  draggingItem.value = null
+  queryZoneRect().then((zoneRect) => {
+    if (!zoneRect) {
+      return
+    }
+    const inZone =
+      dragPoint.value.x >= zoneRect.left &&
+      dragPoint.value.x <= zoneRect.right &&
+      dragPoint.value.y >= zoneRect.top &&
+      dragPoint.value.y <= zoneRect.bottom
+    if (inZone) {
+      equip(item)
+      uni.showToast({ title: '已放到人物上', icon: 'none' })
+    }
+  })
+}
+
+function cancelSourceDrag() {
+  dragCandidate.value = null
+  draggingItem.value = null
 }
 
 function equip(item) {
+  if (!item || !Object.prototype.hasOwnProperty.call(selected, item.category)) {
+    return
+  }
   selected[item.category] = item
   activeSlot.value = item.category
   resetWearPosition(item.category)
@@ -271,6 +308,7 @@ function savePlan() {
       },
       positions: getSavedPositions(zoneRect)
     })
+    clearSelected()
     uni.showToast({ title: '方案已保存', icon: 'success' })
   })
 }
@@ -281,6 +319,9 @@ function subLabel(item) {
 
 function wearStyle(slot) {
   const position = wearPositions[slot]
+  if (!position) {
+    return ''
+  }
   const transform = getWearTransform(slot)
   if (!position.moved) {
     return `transform:translateX(-50%) ${transform};`
@@ -289,6 +330,9 @@ function wearStyle(slot) {
 }
 
 function resetWearPosition(slot) {
+  if (!wearPositions[slot]) {
+    return
+  }
   wearPositions[slot].x = 0
   wearPositions[slot].y = 0
   wearPositions[slot].moved = false
@@ -315,32 +359,50 @@ function handleWearTap(slot) {
 }
 
 function startWearDrag(slot, event) {
-  wearDrag.slot = slot
+  if (!wearPositions[slot]) {
+    return
+  }
   activeSlot.value = slot
-  const touch = event.touches?.[0] || event.changedTouches?.[0]
+  const touch = getTouchPoint(event)
   if (!touch) {
     return
   }
+  wearDrag.slot = slot
+  wearDrag.ready = false
   wearDrag.startX = touch.clientX
   wearDrag.startY = touch.clientY
   wearDrag.hasMoved = false
 
   queryRects(`#wear-${slot}`, '#personZone').then(({ itemRect, zoneRect }) => {
+    if (!itemRect || !zoneRect || wearDrag.slot !== slot) {
+      cancelWearDrag()
+      return
+    }
     wearDrag.offsetX = touch.clientX - itemRect.left
     wearDrag.offsetY = touch.clientY - itemRect.top
     wearDrag.width = itemRect.width
     wearDrag.height = itemRect.height
+    wearDrag.zoneLeft = zoneRect.left
+    wearDrag.zoneTop = zoneRect.top
+    wearDrag.zoneWidth = zoneRect.width
+    wearDrag.zoneHeight = zoneRect.height
     wearPositions[slot].x = itemRect.left - zoneRect.left
     wearPositions[slot].y = itemRect.top - zoneRect.top
     wearPositions[slot].moved = true
+    wearDrag.ready = true
   })
 }
 
 function moveWearDrag(event) {
-  if (!wearDrag.slot) {
+  if (!wearDrag.slot || !wearDrag.ready) {
     return
   }
-  const touch = event.touches?.[0] || event.changedTouches?.[0]
+  const position = wearPositions[wearDrag.slot]
+  if (!position) {
+    cancelWearDrag()
+    return
+  }
+  const touch = getTouchPoint(event)
   if (!touch) {
     return
   }
@@ -348,42 +410,46 @@ function moveWearDrag(event) {
     wearDrag.hasMoved = true
   }
 
-  queryZoneRect().then((zoneRect) => {
-    const slot = wearDrag.slot
-    const nextX = touch.clientX - zoneRect.left - wearDrag.offsetX
-    const nextY = touch.clientY - zoneRect.top - wearDrag.offsetY
-    wearPositions[slot].x = clamp(nextX, 0, zoneRect.width - wearDrag.width)
-    wearPositions[slot].y = clamp(nextY, 0, zoneRect.height - wearDrag.height)
-    wearPositions[slot].moved = true
-  })
+  const slot = wearDrag.slot
+  const nextX = touch.clientX - wearDrag.zoneLeft - wearDrag.offsetX
+  const nextY = touch.clientY - wearDrag.zoneTop - wearDrag.offsetY
+  position.x = clamp(nextX, 0, wearDrag.zoneWidth - wearDrag.width)
+  position.y = clamp(nextY, 0, wearDrag.zoneHeight - wearDrag.height)
+  position.moved = true
 }
 
 function endWearDrag(event) {
   const slot = wearDrag.slot
   if (slot && !wearDrag.hasMoved) {
     handleWearTap(slot)
-  } else if (slot) {
-    setDragPoint(event)
   }
   cancelWearDrag()
 }
 
 function cancelWearDrag() {
   wearDrag.slot = ''
+  wearDrag.ready = false
   wearDrag.width = 0
   wearDrag.height = 0
   wearDrag.hasMoved = false
 }
 
 function startTransformDrag(slot, event) {
+  if (!wearPositions[slot]) {
+    return
+  }
   activeSlot.value = slot
   transformDrag.slot = slot
-  const touch = event.touches?.[0] || event.changedTouches?.[0]
+  const touch = getTouchPoint(event)
   if (!touch) {
     return
   }
 
   queryRect(`#wear-${slot}`).then((itemRect) => {
+    if (!itemRect || transformDrag.slot !== slot) {
+      endTransformDrag()
+      return
+    }
     const centerX = itemRect.left + itemRect.width / 2
     const centerY = itemRect.top + itemRect.height / 2
     transformDrag.centerX = centerX
@@ -399,12 +465,16 @@ function moveTransformDrag(event) {
   if (!transformDrag.slot) {
     return
   }
-  const touch = event.touches?.[0] || event.changedTouches?.[0]
+  const touch = getTouchPoint(event)
   if (!touch) {
     return
   }
 
   const position = wearPositions[transformDrag.slot]
+  if (!position) {
+    endTransformDrag()
+    return
+  }
   const distance = getDistance(touch.clientX, touch.clientY, transformDrag.centerX, transformDrag.centerY)
   const angle = getAngle(touch.clientX, touch.clientY, transformDrag.centerX, transformDrag.centerY)
   const nextScale = transformDrag.startScale * (distance / Math.max(transformDrag.startDistance, 1))
@@ -472,6 +542,9 @@ function getSavedPositions(zoneRect) {
 
 function getWearTransform(slot) {
   const position = wearPositions[slot]
+  if (!position) {
+    return ''
+  }
   return `scale(${position.scale}) rotate(${position.rotate}deg)`
 }
 
@@ -482,6 +555,17 @@ function getBaseSizeRate(slot) {
     shoes: { widthRate: 250 / 452, heightRate: 120 / 820 }
   }
   return sizes[slot]
+}
+
+function getTouchPoint(event) {
+  const touch = event.touches?.[0] || event.changedTouches?.[0]
+  if (!touch) {
+    return null
+  }
+  return {
+    clientX: touch.clientX ?? touch.pageX,
+    clientY: touch.clientY ?? touch.pageY
+  }
 }
 
 function getDistance(x, y, centerX, centerY) {
@@ -495,9 +579,13 @@ function getAngle(x, y, centerX, centerY) {
 
 <style scoped>
 .page {
+  height: 100vh;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   padding: 20rpx;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .summary {
@@ -514,7 +602,8 @@ function getAngle(x, y, centerX, centerY) {
   display: grid;
   grid-template-columns: 240rpx 1fr;
   gap: 18rpx;
-  min-height: 820rpx;
+  flex: 1;
+  min-height: 0;
 }
 
 .left-panel,
@@ -526,7 +615,7 @@ function getAngle(x, y, centerX, centerY) {
 }
 
 .cloth-scroll {
-  height: 820rpx;
+  height: 100%;
 }
 
 .category-section {
@@ -584,7 +673,7 @@ function getAngle(x, y, centerX, centerY) {
 
 .person-zone {
   position: relative;
-  min-height: 820rpx;
+  min-height: 0;
 }
 
 .person {
@@ -844,14 +933,12 @@ function getAngle(x, y, centerX, centerY) {
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: 180rpx 1fr;
-  gap: 18rpx;
-  margin-top: 20rpx;
+  margin-top: 16rpx;
 }
 
-.primary,
-.secondary {
+.primary {
+  width: 100%;
+  box-sizing: border-box;
   height: 84rpx;
   line-height: 84rpx;
   font-size: 28rpx;
@@ -863,9 +950,4 @@ function getAngle(x, y, centerX, centerY) {
   background: #156b6a;
 }
 
-.secondary {
-  color: #156b6a;
-  background: #ffffff;
-  border: 1rpx solid #156b6a;
-}
 </style>

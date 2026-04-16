@@ -1,21 +1,33 @@
 {
   "pages": [
     {
-      "path": "pages/wardrobe/index",
-      "style": {
-        "navigationBarTitleText": "衣物库"
-      }
-    },
-    {
       "path": "pages/outfit/index",
       "style": {
         "navigationBarTitleText": "搭配"
       }
     },
     {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/upload-clothes/index",
+      "style": {
+        "navigationBarTitleText": "上传衣物"
+      }
+    },
+    {
+      "path": "pages/my-clothes/index",
+      "style": {
+        "navigationBarTitleText": "我的衣物"
+      }
+    },
+    {
       "path": "pages/plans/index",
       "style": {
-        "navigationBarTitleText": "方案"
+        "navigationBarTitleText": "我的方案"
       }
     }
   ],
@@ -26,16 +38,12 @@
     "borderStyle": "black",
     "list": [
       {
-        "pagePath": "pages/wardrobe/index",
-        "text": "衣物库"
-      },
-      {
         "pagePath": "pages/outfit/index",
         "text": "搭配"
       },
       {
-        "pagePath": "pages/plans/index",
-        "text": "方案"
+        "pagePath": "pages/profile/index",
+        "text": "我的"
       }
     ]
   },
