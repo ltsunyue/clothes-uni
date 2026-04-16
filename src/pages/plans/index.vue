@@ -4,11 +4,14 @@
 
     <view v-for="plan in plans" :key="plan.id" class="plan-card">
       <view class="plan-header">
-        <view>
+        <view class="plan-title-box">
           <text class="plan-title">{{ plan.name }}</text>
           <text class="plan-time">{{ formatTime(plan.createdAt) }}</text>
         </view>
-        <button class="delete" size="mini" @tap="removePlan(plan.id)">删除</button>
+        <view class="plan-actions">
+          <button class="rename" size="mini" @tap="renamePlan(plan)">修改</button>
+          <button class="delete" size="mini" @tap="removePlan(plan.id)">删除</button>
+        </view>
       </view>
 
       <view class="plan-preview">
@@ -75,7 +78,7 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { deleteOutfitPlan, getOutfitPlans, getSubcategoryLabel } from '../../utils/storage'
+import { deleteOutfitPlan, getOutfitPlans, getSubcategoryLabel, updateOutfitPlanName } from '../../utils/storage'
 
 const plans = ref([])
 const slots = [
@@ -97,6 +100,28 @@ function removePlan(id) {
         deleteOutfitPlan(id)
         plans.value = getOutfitPlans()
       }
+    }
+  })
+}
+
+function renamePlan(plan) {
+  uni.showModal({
+    title: '修改方案名称',
+    editable: true,
+    placeholderText: '请输入方案名称',
+    content: plan.name,
+    success: (result) => {
+      if (!result.confirm) {
+        return
+      }
+      const nextName = (result.content || '').trim()
+      if (!nextName) {
+        uni.showToast({ title: '名称不能为空', icon: 'none' })
+        return
+      }
+      updateOutfitPlanName(plan.id, nextName)
+      plans.value = getOutfitPlans()
+      uni.showToast({ title: '已修改', icon: 'success' })
     }
   })
 }
@@ -179,6 +204,11 @@ function wearTransform(position) {
   margin-bottom: 20rpx;
 }
 
+.plan-title-box {
+  min-width: 0;
+  flex: 1;
+}
+
 .plan-title,
 .plan-time {
   display: block;
@@ -188,6 +218,10 @@ function wearTransform(position) {
   color: #222;
   font-size: 30rpx;
   font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-time {
@@ -199,6 +233,17 @@ function wearTransform(position) {
 .delete {
   color: #ffffff;
   background: #d94f45;
+}
+
+.plan-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10rpx;
+}
+
+.rename {
+  color: #ffffff;
+  background: #156b6a;
 }
 
 .plan-preview {

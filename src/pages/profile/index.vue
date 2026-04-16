@@ -8,7 +8,7 @@
     <view class="menu">
       <button class="menu-button" @tap="goUploadClothes">上传衣物</button>
       <button class="menu-button" @tap="goSavedClothes">我的衣物</button>
-      <button class="menu-button" @tap="goPlans">我的方案</button>
+      <button class="menu-button" @tap="goPlans">我的穿搭</button>
     </view>
   </view>
 </template>

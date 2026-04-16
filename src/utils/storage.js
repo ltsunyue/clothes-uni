@@ -85,3 +85,16 @@ export function addOutfitPlan(payload) {
 export function deleteOutfitPlan(id) {
   saveOutfitPlans(getOutfitPlans().filter((plan) => plan.id !== id))
 }
+
+export function updateOutfitPlanName(id, name) {
+  const plans = getOutfitPlans().map((plan) => {
+    if (plan.id !== id) {
+      return plan
+    }
+    return {
+      ...plan,
+      name
+    }
+  })
+  saveOutfitPlans(plans)
+}

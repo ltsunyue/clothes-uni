@@ -1,18 +1,34 @@
 <template>
   <view class="page">
     <view class="panel form-panel">
-      <view class="field">
+      <view class="field choice-field">
         <text class="label">分类</text>
-        <picker :range="categoryLabels" :value="categoryIndex" @change="onCategoryChange">
-          <view class="picker">{{ activeCategory.label }}</view>
-        </picker>
+        <radio-group class="choice-group" @change="onCategoryRadioChange">
+          <label
+            v-for="(category, index) in CATEGORY_TREE"
+            :key="category.key"
+            class="choice"
+            :class="{ active: activeCategory.key === category.key }"
+          >
+            <radio class="radio" :value="category.key" :checked="categoryIndex === index" color="#156b6a" />
+            {{ category.label }}
+          </label>
+        </radio-group>
       </view>
 
-      <view class="field">
+      <view class="field choice-field">
         <text class="label">类型</text>
-        <picker :range="subcategoryLabels" :value="subcategoryIndex" @change="onSubcategoryChange">
-          <view class="picker">{{ activeSubcategory.label }}</view>
-        </picker>
+        <radio-group class="choice-group type-choice-group" @change="onSubcategoryRadioChange">
+          <label
+            v-for="(subcategory, index) in activeCategory.children"
+            :key="subcategory.key"
+            class="choice"
+            :class="{ active: activeSubcategory.key === subcategory.key }"
+          >
+            <radio class="radio" :value="subcategory.key" :checked="subcategoryIndex === index" color="#629a8d" />
+            {{ subcategory.label }}
+          </label>
+        </radio-group>
       </view>
 
       <view class="upload" @tap="chooseImage">
@@ -33,18 +49,26 @@ const categoryIndex = ref(0)
 const subcategoryIndex = ref(0)
 const imagePath = ref('')
 
-const categoryLabels = computed(() => CATEGORY_TREE.map((item) => item.label))
 const activeCategory = computed(() => CATEGORY_TREE[categoryIndex.value])
-const subcategoryLabels = computed(() => activeCategory.value.children.map((item) => item.label))
 const activeSubcategory = computed(() => activeCategory.value.children[subcategoryIndex.value])
 
-function onCategoryChange(event) {
-  categoryIndex.value = Number(event.detail.value)
+function selectCategory(index) {
+  categoryIndex.value = index
   subcategoryIndex.value = 0
 }
 
-function onSubcategoryChange(event) {
-  subcategoryIndex.value = Number(event.detail.value)
+function onCategoryRadioChange(event) {
+  const index = CATEGORY_TREE.findIndex((category) => category.key === event.detail.value)
+  if (index >= 0) {
+    selectCategory(index)
+  }
+}
+
+function onSubcategoryRadioChange(event) {
+  const index = activeCategory.value.children.findIndex((subcategory) => subcategory.key === event.detail.value)
+  if (index >= 0) {
+    subcategoryIndex.value = index
+  }
 }
 
 function chooseImage() {
@@ -112,20 +136,64 @@ function createItem(image) {
   gap: 24rpx;
 }
 
+.choice-field {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
 .label {
   color: #3b4542;
   font-size: 28rpx;
 }
 
-.picker {
-  min-width: 260rpx;
-  height: 72rpx;
-  line-height: 72rpx;
-  text-align: center;
-  color: #156b6a;
-  background: #eef7f6;
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  width: 100%;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 156rpx;
+  min-height: 68rpx;
+  padding: 0 18rpx;
+  box-sizing: border-box;
+  color: #3b4542;
+  background: #f4f6f5;
+  border: 2rpx solid #dce4df;
   border-radius: 8px;
   font-size: 28rpx;
+}
+
+.choice.active {
+  color: #156b6a;
+  background: #eef7f6;
+  border-color: #156b6a;
+  font-weight: 600;
+}
+
+.type-choice-group .choice {
+  min-width: 151rpx;
+  min-height: 63rpx;
+  padding: 0 13rpx;
+  color: #56615d;
+  background: #fbfcfb;
+  border-color: #e7eeea;
+  font-size: 27rpx;
+}
+
+.type-choice-group .choice.active {
+  color: #2b7774;
+  background: #f2faf8;
+  border-color: #8fc9c2;
+}
+
+.radio {
+  transform: scale(0.82);
 }
 
 .upload {
